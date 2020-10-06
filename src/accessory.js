@@ -112,11 +112,13 @@ class TelevisionAccessory {
       
       }
       
-      if(external)
-        this.api.updatePlatformAccessories(this.accessories);
+      this.debug(this.accessory.displayName + ': Updating cached accessories..');      
       
-      
-      this.debug(this.accessory.displayName + ': Accessory successfully processed');
+      await timeout(500);
+      this.api.updatePlatformAccessories(this.accessories);
+      await timeout(500);
+
+      this.debug(this.accessory.displayName + ': Accessory successfully updated!');
       this.getService();
 
     } catch(err){
@@ -141,13 +143,17 @@ class TelevisionAccessory {
         Characteristic.SleepDiscoveryMode.ALWAYS_DISCOVERABLE
       );
     
-    Television.addCharacteristic(Characteristic.RemoteKey);
+    if(!Television.testCharacteristic(Characteristic.RemoteKey))
+      Television.addCharacteristic(Characteristic.RemoteKey);
     
-    Television.addCharacteristic(Characteristic.PowerModeSelection);
+    if(!Television.testCharacteristic(Characteristic.PowerModeSelection))
+      Television.addCharacteristic(Characteristic.PowerModeSelection);
 
-    Television.addCharacteristic(Characteristic.PictureMode);
+    if(!Television.testCharacteristic(Characteristic.PictureMode))
+      Television.addCharacteristic(Characteristic.PictureMode);
 
-    Television.addCharacteristic(Characteristic.DisplayOrder);
+    if(!Television.testCharacteristic(Characteristic.DisplayOrder))
+      Television.addCharacteristic(Characteristic.DisplayOrder);
   
     return Television;
   
@@ -179,10 +185,14 @@ class TelevisionAccessory {
       let inputs = await this._getInputs();
   
       inputs.map( input => {
-  
-        this._inputs.set((input.title ? input.title : input.label), input.uri);
-        this._sourceType.set((input.title ? input.title : input.label), input.sourceType);
-        this._deviceType.set((input.title ? input.title : input.label), input.deviceType);
+
+        const isTitleValid = input.title && input.title.length > 0;
+        const isLabelValid = input.label && input.label.length > 0;
+
+        this._inputs.set((isLabelValid ? input.label : input.title), input.uri);
+        this._sourceType.set((isTitleValid ? input.title : input.label), input.sourceType);
+        this._deviceType.set((isTitleValid ? input.title : input.label), input.deviceType);
+
 
       });
       
@@ -592,20 +602,20 @@ class TelevisionAccessory {
         await timeout(6000);
         
       }
-    
+      
       for(const i of this._inputs){
         if(i[1]===uri)
           this.logger.info(this.accessory.displayName + ': Turn on ' + i[0]);
       }
-  
-      if(uri.includes('com.sony.dtv')){
-        await this.Bravia.setActiveApp(uri);  
+      
+      if(uri.includes('tv:')||uri.includes('extInput:')){
+        await this.Bravia.setPlayContent(uri);
       } else if(uri.includes('AAAAA')){
         await this.Bravia.setIRCC(uri);
       } else {
-        await this.Bravia.setPlayContent(uri);  
+        await this.Bravia.setActiveApp(uri);
       }
-  
+
     } catch(err) {
   
       this.logger.error(this.accessory.displayName + ': An error occured while setting new input state!'); 
